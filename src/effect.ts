@@ -1,0 +1,145 @@
+import { TriggerType } from "./constant";
+import { isEqual } from "./utils";
+
+interface Fn {
+  (...args: any[]): any;
+}
+
+interface EffectFn {
+  (...args: any[]): any;
+  deps: Set<EffectFn>[];
+  options: EffectOptions;
+}
+
+interface EffectOptions {
+  schedular?: Fn;
+}
+
+const effectMaps = new WeakMap();
+const effectStack: EffectFn[] = [];
+const ITERATE_KEY = Symbol();
+let activeEffect: null | EffectFn = null;
+
+function cleanupDeps(effectFn: EffectFn) {
+  effectFn.deps.forEach((depSet) => {
+    depSet.delete(effectFn);
+  });
+  effectFn.deps.length = 0;
+}
+
+// 收集依赖
+function track(target: Record<string | symbol, any>, key: string | symbol) {
+  if (!activeEffect) {
+    return;
+  }
+  // 获取当前对象的 依赖 Map
+  let depsMap: Map<any, Set<EffectFn>> | undefined = effectMaps.get(target);
+
+  if (!depsMap) {
+    effectMaps.set(target, (depsMap = new Map()));
+  }
+
+  //  当前对象 键值 的依赖数组
+  let deps = depsMap.get(key);
+  if (!deps) {
+    depsMap.set(key, (deps = new Set()));
+  }
+
+  // effect 函数存取 当前键值的依赖数组， 方便后续清除
+  activeEffect.deps.push(deps);
+  // 当前键值的依赖数组 存入 当前函数
+  deps.add(activeEffect);
+}
+// 触发依赖
+function trigger(
+  target: Record<string | symbol, any>,
+  key: string | symbol,
+  type: typeof TriggerType[keyof typeof TriggerType] = TriggerType.UPDATE
+) {
+  // 获取当前对象的依赖Map
+  const depsMap: Map<any, Set<EffectFn>> = effectMaps.get(target);
+  if (!depsMap) return;
+
+  const copyEffects = new Set<EffectFn>();
+  //   新增或者删除key 时，需要触发 迭代 依赖
+  if (type === TriggerType.DELETE || type === TriggerType.ADD) {
+    const iteratorEffects = depsMap.get(ITERATE_KEY);
+    iteratorEffects &&
+      iteratorEffects.forEach((fn) => {
+        if (fn !== activeEffect) {
+          copyEffects.add(fn);
+        }
+      });
+  }
+
+  // 当前对象键值的依赖数组
+  const effects = depsMap.get(key);
+  effects &&
+    effects.forEach((fn) => {
+      // 避免无限调用
+      if (fn !== activeEffect) {
+        copyEffects.add(fn);
+      }
+    });
+
+  // 将依赖当前数据的函数全部触发
+  // 为了避免触发函数时 往当前effects 中继续新增，所以拷贝一份进行遍历执行
+  copyEffects.forEach((fn) => {
+    // 可以调用自定义的schedular
+    const callFN = fn.options.schedular || fn;
+    callFN();
+  });
+}
+
+export function reactive(obj: Record<string | symbol, any>) {
+  return new Proxy(obj, {
+    get(target, key, receiver) {
+      track(target, key);
+      return Reflect.get(target, key, receiver);
+    },
+    set(target, key, value, receiver) {
+      // 判断触发类型，是设置值，还是新增值
+      const triggerType = Object.prototype.hasOwnProperty.call(target, key)
+        ? TriggerType.UPDATE
+        : TriggerType.ADD;
+      // 获取老的值
+      const oldValue = target[key];
+      const res = Reflect.set(target, key, value, receiver);
+
+      // 比较
+      if (!isEqual(oldValue, value)) {
+        trigger(target, key, triggerType);
+      }
+      return res;
+    },
+    ownKeys(target) {
+      track(target, ITERATE_KEY);
+      return Reflect.ownKeys(target);
+    },
+    deleteProperty(target, key) {
+      const hadKey = Object.prototype.hasOwnProperty.call(target, key);
+      const res = Reflect.deleteProperty(target, key);
+      if (hadKey && res) {
+        trigger(target, key, TriggerType.DELETE);
+      }
+
+      return res;
+    },
+  });
+}
+
+export function effect(fn: Fn, options: EffectOptions = {}) {
+  const effectFn: EffectFn = () => {
+    cleanupDeps(effectFn);
+    activeEffect = effectFn;
+    // 入栈，使用栈 实现嵌套
+    effectStack.push(effectFn);
+    fn();
+    // 出栈
+    effectStack.pop();
+    activeEffect = effectStack[effectStack.length - 1];
+  };
+  effectFn.deps = [];
+  effectFn.options = options;
+  effectFn();
+}
