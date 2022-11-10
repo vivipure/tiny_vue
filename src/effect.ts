@@ -1,5 +1,4 @@
-import { TriggerType } from "./constant";
-import { isEqual } from "./utils";
+import { ITERATE_KEY, TriggerType } from "./constant";
 
 interface Fn {
   (...args: any[]): any;
@@ -17,9 +16,9 @@ interface EffectOptions {
 
 const effectMaps = new WeakMap();
 const effectStack: EffectFn[] = [];
-const ITERATE_KEY = Symbol();
 let activeEffect: null | EffectFn = null;
 
+// 重置当前函数的依赖
 function cleanupDeps(effectFn: EffectFn) {
   effectFn.deps.forEach((depSet) => {
     depSet.delete(effectFn);
@@ -28,7 +27,7 @@ function cleanupDeps(effectFn: EffectFn) {
 }
 
 // 收集依赖
-function track(target: Record<string | symbol, any>, key: string | symbol) {
+export function track(target: Record<string | symbol, any>, key: string | symbol) {
   if (!activeEffect) {
     return;
   }
@@ -51,7 +50,7 @@ function track(target: Record<string | symbol, any>, key: string | symbol) {
   deps.add(activeEffect);
 }
 // 触发依赖
-function trigger(
+export function trigger(
   target: Record<string | symbol, any>,
   key: string | symbol,
   type: typeof TriggerType[keyof typeof TriggerType] = TriggerType.UPDATE
@@ -91,43 +90,7 @@ function trigger(
   });
 }
 
-export function reactive(obj: Record<string | symbol, any>) {
-  return new Proxy(obj, {
-    get(target, key, receiver) {
-      track(target, key);
-      return Reflect.get(target, key, receiver);
-    },
-    set(target, key, value, receiver) {
-      // 判断触发类型，是设置值，还是新增值
-      const triggerType = Object.prototype.hasOwnProperty.call(target, key)
-        ? TriggerType.UPDATE
-        : TriggerType.ADD;
-      // 获取老的值
-      const oldValue = target[key];
-      const res = Reflect.set(target, key, value, receiver);
-
-      // 比较
-      if (!isEqual(oldValue, value)) {
-        trigger(target, key, triggerType);
-      }
-      return res;
-    },
-    ownKeys(target) {
-      track(target, ITERATE_KEY);
-      return Reflect.ownKeys(target);
-    },
-    deleteProperty(target, key) {
-      const hadKey = Object.prototype.hasOwnProperty.call(target, key);
-      const res = Reflect.deleteProperty(target, key);
-      if (hadKey && res) {
-        trigger(target, key, TriggerType.DELETE);
-      }
-
-      return res;
-    },
-  });
-}
-
+// effect 函数
 export function effect(fn: Fn, options: EffectOptions = {}) {
   const effectFn: EffectFn = () => {
     cleanupDeps(effectFn);
