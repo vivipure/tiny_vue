@@ -1,6 +1,6 @@
 import { it, describe, vi, expect } from "vitest";
-import { effect } from "../src/effect";
-import { reactive, shallowReactive } from "../src/reactive";
+import { effect } from "../src/reactivity";
+import { reactive, shallowReactive } from "../src/reactivity";
 
 describe("effect test suits", () => {
   it("effect 函数读取值后， 改变值可以触发副作用函数", () => {
@@ -79,8 +79,8 @@ describe("effect test suits", () => {
     expect(fn).toBeCalledTimes(1);
   });
 
-  it('数组改变触发 effect',() => {
-    const arr = reactive([1])
+  it("数组改变触发 effect", () => {
+    const arr = reactive([1]);
     const fn = vi.fn();
 
     effect(() => {
@@ -88,8 +88,7 @@ describe("effect test suits", () => {
       fn();
     });
 
-    arr[0] = 2
-    expect(fn).toBeCalledTimes(2)
-  })
-
+    arr[0] = 2;
+    expect(fn).toBeCalledTimes(2);
+  });
 });

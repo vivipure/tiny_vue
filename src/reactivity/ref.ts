@@ -13,7 +13,7 @@ export function ref(
   return reactive(wrapper);
 }
 
-function toRef<T>(obj: T, key: keyof T) {
+export function toRef<T>(obj: T, key: keyof T) {
   const wrapper = {
     get value() {
       return obj[key];
@@ -29,7 +29,7 @@ function toRef<T>(obj: T, key: keyof T) {
   return wrapper;
 }
 
-function toRefs<T>(obj: T) {
+export function toRefs<T>(obj: T) {
   const ret: Record<string, any> = {};
   for (const key in obj) {
     ret[key] = toRef(obj, key);
@@ -37,7 +37,7 @@ function toRefs<T>(obj: T) {
   return ret;
 }
 
-function proxyRefs<T extends Record<string | number | symbol, any>>(target: T) {
+export function proxyRefs<T extends Record<string | number | symbol, any>>(target: T) {
   return new Proxy(target, {
     get(target, key, receiver) {
       const value = Reflect.get(target, key, receiver);

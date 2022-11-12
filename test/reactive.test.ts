@@ -1,5 +1,5 @@
 import { it, describe, vi, expect } from "vitest";
-import { reactive } from "../src/reactive";
+import { reactive } from "../src/reactivity";
 
 
 describe('reactive test', () => {
@@ -12,6 +12,5 @@ describe('reactive test', () => {
         expect(reactiveObj.foo).toBe(original.foo)
         reactiveObj.foo = 2
         expect(reactiveObj.foo).toBe(original.foo)
-
     })
 })

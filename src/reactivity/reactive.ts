@@ -1,6 +1,6 @@
 import { ITERATE_KEY, TriggerType } from "./constant";
 import { track, trigger } from "./effect";
-import { isEqual } from "./utils";
+import { isEqual } from "../utils/utils";
 
 export const ReativeFlags = {
   REACTIVE: Symbol("__v_reactive"),

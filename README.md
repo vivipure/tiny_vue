@@ -9,3 +9,6 @@ Tiny vue 3 implement for study.
 - shallowReactive
 - readonly
 - toRaw
+- ref
+- toRef
+- toRefs
