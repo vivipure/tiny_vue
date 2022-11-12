@@ -27,7 +27,10 @@ function cleanupDeps(effectFn: EffectFn) {
 }
 
 // 收集依赖
-export function track(target: Record<string | symbol, any>, key: string | symbol) {
+export function track(
+  target: Record<string | symbol, any>,
+  key: string | symbol | number
+) {
   if (!activeEffect) {
     return;
   }
@@ -51,8 +54,8 @@ export function track(target: Record<string | symbol, any>, key: string | symbol
 }
 // 触发依赖
 export function trigger(
-  target: Record<string | symbol, any>,
-  key: string | symbol,
+  target: Record<string | symbol | number, any>,
+  key: string | symbol | number,
   type: typeof TriggerType[keyof typeof TriggerType] = TriggerType.UPDATE
 ) {
   // 获取当前对象的依赖Map

@@ -78,4 +78,18 @@ describe("effect test suits", () => {
     obj.foo.bar = 2;
     expect(fn).toBeCalledTimes(1);
   });
+
+  it('数组改变触发 effect',() => {
+    const arr = reactive([1])
+    const fn = vi.fn();
+
+    effect(() => {
+      console.log(arr[0]);
+      fn();
+    });
+
+    arr[0] = 2
+    expect(fn).toBeCalledTimes(2)
+  })
+
 });
