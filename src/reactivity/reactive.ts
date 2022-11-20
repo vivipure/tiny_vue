@@ -97,7 +97,7 @@ export function shallowReactive(obj: Record<string | symbol, any>) {
   return createReactive(obj, true);
 }
 
-export function reactive(obj: Record<string | symbol, any>) {
+export function reactive<T extends Record<string | symbol, any>>(obj: T) {
   return createReactive(obj, false);
 }
 

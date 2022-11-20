@@ -1,7 +1,7 @@
-import { reactive } from "./reactive";
+import { reactive, shallowReactive } from "./reactive";
 
-export function ref(
-  val: any
+export function ref<T>(
+  val: T
 ) {
   const wrapper = {
     value: val,
@@ -52,4 +52,15 @@ export function proxyRefs<T extends Record<string | number | symbol, any>>(targe
       return Reflect.set(target, key, newV, receiver);
     },
   });
+}
+
+export function shallowRef<T>(val: T) {
+  const wrapper = {
+    value: val,
+  };
+  Object.defineProperty(wrapper, "__v_isShallowRef", {
+    value: true,
+    enumerable: false,
+  });
+  return shallowReactive(wrapper)
 }

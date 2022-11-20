@@ -1,12 +1,21 @@
+import { effect, reactive } from "../reactivity";
+import { queueJob } from "./quene";
+
 const Text = Symbol();
 const Comment = Symbol();
 const Fragment = Symbol();
 
+type Component = {
+  render: (arg: any) => VNode;
+  data: () => Record<string, any>;
+};
+
 type VNode = {
-  type: string;
+  type: string | Component | symbol;
   children: string | VNode[];
   props: Record<string, any>;
   el?: Element;
+  component?: any;
   key: any;
 };
 
@@ -45,6 +54,12 @@ export function createRenderer(options: RendererOptions) {
     if (vnode.type === Fragment) {
       // @ts-ignore
       vnode.children.forEach((c) => unmount(c));
+      return;
+    }
+
+    if (typeof vnode.type === "object") {
+      unmount(vnode.component.subTree);
+      return;
     }
 
     const el = vnode.el;
@@ -91,10 +106,44 @@ export function createRenderer(options: RendererOptions) {
       } else {
         patchChildren(oldVNode, newVNode, container);
       }
-    } else if (typeof type === "object") {
+    } else if (typeof type === "object" || typeof type === "function") {
       // 组件
+      if (!oldVNode) {
+        mountComponent(newVNode, container, anchor);
+      } else {
+        patchComponent(oldVNode, newVNode, anchor);
+      }
     }
   }
+
+  function mountComponent(component: VNode, container: Element, anchor: any) {
+
+    const isFunctional = typeof component.type === 'function'
+
+    let componentOptions = component.type as Component;
+    if(isFunctional) {
+      // componentOptions = {
+      //   render: component.type ,
+      //   props: component.type.props
+      // }
+    }
+
+
+    const { render, data } = componentOptions;
+
+    const state = reactive(data());
+
+    effect(
+      () => {
+        const subTree = render.call(state, state);
+        patch(null, subTree, container, anchor);
+      },
+      {
+        schedular: queueJob,
+      }
+    );
+  }
+  function patchComponent(oldVNode: VNode, newVNode: VNode, anchor: any) {}
 
   function patchElement(oldVNode: VNode, newVNode: VNode) {
     const el = (newVNode.el = oldVNode.el);
@@ -149,7 +198,7 @@ export function createRenderer(options: RendererOptions) {
     container: Element,
     anchor?: Node | null
   ) {
-    const el = createElement(vnode.type);
+    const el = createElement(vnode.type as string);
 
     // 将真实DOM 绑在vnode上，方便后续移除
     vnode.el = el;
@@ -397,7 +446,7 @@ export function createRenderer(options: RendererOptions) {
       }
 
       if (moved) {
-        const seq = getSequence(source)
+        const seq = getSequence(source);
 
         let s = source.length - 1;
         let i = count - 1;
